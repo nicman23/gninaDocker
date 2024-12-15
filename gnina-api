@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
+cd /data
 
-python gnina-api.py
+python3 /bin/gnina-api-stage1.py &>/dev/null &
+
+
+while [ ! -e '/tmp/start' ]; do
+sleep 1
+done
 
 
 gnina-virtualscreen() {
@@ -30,21 +36,32 @@ gnina-virtualscreen() {
     echo "Time elapsed: $((mytime1 - mytime0)) seconds."
 }
 
+
+echo running GNINA
 #
 # ::: MAIN
 #
-export GNINA_RECFILE="$(find /data/ligands -name '*.sdf')"
+export GNINA_RECFILE="$(find /data/receptor -name '*.pdb')"
 export GNINA_AUTOBOX="$(find /data/box -name '*.sdf')"
 export -f gnina-virtualscreen
 export CUDA_VISIBLE_DEVICES=1
-mkdir -p results logs
 
-INPUT_SDFILES=( $(find /data/ligands -name '*.sdf') )
+INPUT_SDFILES=( $() )
 
 # Redirect STDERR -> STDOUT
-LOGFILE=gnina_logfile${CUDA_VISIBLE_DEVICES}.log
-exec 3>&1 4>&2
-trap 'exec 2>&4 1>&3' 0 1 2 3
-exec > "$LOGFILE" 2>&1
+# LOGFILE=gnina_logfile${CUDA_VISIBLE_DEVICES}.log
 
-parallel -j5 gnina-virtualscreen {} ::: ${INPUT_SDFILES[@]}
+# exec 3>&1 4>&2
+# trap 'exec 2>&4 1>&3' 0 1 2 3
+# exec > "$LOGFILE" 2>&1
+mkdir -p results logs
+
+
+
+find /data/ligands -name '*.sdf' |
+parallel -j5 gnina-virtualscreen {}
+
+touch /tmp/done
+tar --zstd -cf /tmp/tar.zst results/ logs/
+
+wait
